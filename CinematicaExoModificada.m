@@ -69,8 +69,32 @@ THETAauxfd = 38.78;
 Lpc  = 8;     % Manivela: poste sobre la falange PROXIMAL (pivote en IFP) [mm]
 Lpd  = 18;    % Balancin: poste sobre la falange DISTAL  (pivote en IFD) [mm]
 Lac  = 8.86;  % Acoplador que une las puntas de manivela y balancin [mm]
-BETA1 = 40;   % Angulo de montaje de la manivela respecto a la prox. [grados]
-BETA2 = 110;  % Angulo de montaje del balancin respecto a la distal [grados]
+
+% --------------------------------------------------------------------------
+% IMPORTANTE - DOS CONVENCIONES DE ANGULO:
+%
+% (A) PARAMETROS ANALITICOS  (los que usa este script):
+%     BETA1 = 40 deg, BETA2 = 110 deg
+%     Estos valores entran en la formulacion del lado palmar (rama "-" del
+%     arccos en el bloque del 4B#3, mas abajo). Son los valores CORRECTOS
+%     para reproducir la trayectoria DIP 32->62 deg monotona. NO los cambies
+%     sin reformular tambien la rama de ensamble: una sustitucion directa
+%     rompe la trayectoria (verificado numericamente).
+%
+% (B) ANGULOS GEOMETRICOS  (los que usa el CAD / dibujo):
+%     BETA1_geom = -11.4 deg  (eje Fp -> direccion poste Lpc dorsal)
+%     BETA2_geom = 185.8 deg  (eje Fd -> direccion poste Lpd dorsal)
+%     Estos son los angulos que se miden con transportador en el diagrama
+%     dorsal y los que se usan para montar fisicamente los postes en CAD
+%     (ver plano_4B3_general.png y los archivos step_4B3/*.step).
+%
+% Ambas convenciones describen el MISMO mecanismo fisico. La diferencia es
+% solo el frame de referencia: la formulacion analitica vive en el lado
+% palmar y el dibujo refleja a CRK3 y ROK3 al lado dorsal para representar
+% la construccion real. Las longitudes Lpc, Lpd, Lac son identicas en ambos.
+% --------------------------------------------------------------------------
+BETA1 = 40;   % [PARAMETRO ANALITICO] BETA1_geom = -11.4 deg para CAD
+BETA2 = 110;  % [PARAMETRO ANALITICO] BETA2_geom = 185.8 deg para CAD
 
 % %Dedo Medio
 % Link1 = 35;
