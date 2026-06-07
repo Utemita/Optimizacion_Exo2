@@ -81,7 +81,7 @@ MOTOR (en B)
   +-- [4-BARRAS #2]  (entrada: angulo de L7 desde S2)
   |     Eslabones: a2=L7(manivela S2-P2), b2=L8(P2-P3), c2(IFP-P3), d2=sqrt(hsp^2+dsp^2)(IFP-S2)
   |     Salida: angulo de c2 --> THETAfm = THETA4am2 + THETAauxfm
-  |     >> Conexion rigida P3-Fm via L9 + poste hsp sobre Fm <<
+  |     >> c2 y Fm son UN SOLO cuerpo rigido triangular (angulo interno THETAauxfm) <<
   |
   +-- [4-BARRAS #3]  (entrada: rotacion relativa Fp-Fm, o sea flexion PIP)
         Bancada: falange medial Fm (IFP a IFD, longitud 26 mm)
@@ -146,21 +146,40 @@ Este mecanismo opera en un sistema de referencia rotado cuyo centro esta en el p
 1. Bancada del 4B#2: segmento IFP-S2 (longitud d2 = sqrt(17^2+18^2) = 24.76 mm).
 2. Manivela: L7 (= a2 = 35 mm), pivote en S2.
 3. Acoplador: L8 (= b2 = 52 mm), conecta P2 con P3.
-4. Balancin: c2 (= 46.01 mm), pivote en IFP, extremo libre = P3.
-5. Conectar P2-P3 (revoluta) y P3-IFP (revoluta).
+4. **Balancin: c2 (= 46.01 mm), pivote en IFP, extremo libre = P3.**
+   c2 es un eslabon REAL (fisico). Forma parte del cuerpo rigido triangular
+   junto con Fm (ver seccion 4.7).
+5. Conectar P2-P3 (revoluta) y P3-IFP (revoluta en el cuerpo rigido c2+Fm).
 6. El angulo de c2 determina la orientacion de la falange medial:
    THETAfm = THETA4am2 + THETAauxfm (= angulo_balancin + 51.39 deg).
 
-### 4.7 Falange medial y su poste hsp
+### 4.7 Falange medial: cuerpo rigido triangular (c2 + Fm)
 
-1. Cuerpo rigido de longitud fm = 26 mm, pivote en IFP.
-2. Su angulo es THETAfm. Su extremo distal es IFD.
-3. **Poste hsp sobre Fm**: extrusion rigida de longitud hsp = 17 mm, perpendicular
-   a Fm en su lado dorsal, anclada a la mitad de Fm (a 13 mm de IFP).
-4. **Eslabon L9**: barra rigida que conecta el extremo del poste hsp con P3.
-   Esta barra fuerza el offset angular `THETAauxfm = 51.39 deg` entre c2 y Fm.
-   En CAD, L9 puede modelarse como una restriccion rigida en lugar de una pieza
-   real (mismo efecto: P3 y el extremo del poste hsp tienen distancia constante).
+La falange medial y el balancin c2 del 4B#2 forman un **unico cuerpo rigido**
+con forma triangular. NO existe un eslabon "L9" separado ni un "poste hsp sobre Fm".
+
+Geometria del cuerpo rigido triangular:
+
+1. **Pivote en IFP** (articulacion PIP, revoluta).
+2. **Brazo 1 (c2)**: longitud 46.01 mm, desde IFP hasta P3.
+   - P3 es donde se conecta L8 (acoplador del 4B#2) mediante revoluta.
+   - c2 es el balancin del 4B#2 (eslabon real, fisico).
+3. **Brazo 2 (Fm)**: longitud 26 mm, desde IFP hasta IFD.
+   - IFD es la articulacion DIP donde pivotea la falange distal.
+   - Es la falange medial propiamente dicha.
+4. **Angulo interno THETAauxfm = 51.39 deg**: angulo entre la direccion IFP->P3
+   y la direccion IFP->IFD, medido dentro del cuerpo rigido.
+
+En CAD se modela como:
+- Una sola pieza (o cuerpo) con tres puntos clave: IFP, P3, IFD.
+- Revoluta en IFP (permite que rote respecto a la falange proximal).
+- Revoluta en P3 (permite que L8 lo accione).
+- Revoluta en IFD (permite que la falange distal rote respecto a el).
+- La pieza puede tener forma de triangulo plano o de "Y" con los brazos
+  de 46.01 mm y 26 mm separados por 51.39 grados.
+
+El angulo de la falange medial es: THETAfm = THETA4am2 + THETAauxfm,
+donde THETA4am2 es el angulo de salida del balancin c2 del 4B#2.
 
 ### 4.8 Tercer mecanismo de 4 barras (driver DIP) - LADO DORSAL
 
@@ -215,9 +234,8 @@ de la manivela de entrada.
 | Revoluta | Cada union de eslabones | Permite rotacion relativa |
 | Rigida | Lpc con Fp | La manivela del 4B#3 es parte del cuerpo de la falange proximal |
 | Rigida | Lpd con Fd | El balancin del 4B#3 es parte del cuerpo de la falange distal |
-| Rigida | Poste hsp con Fm | El poste sobre Fm es parte del cuerpo de la falange medial |
-| Rigida | Poste hsp con Fd | El poste sobre Fd es parte del cuerpo de la falange distal |
-| Rigida | L9 con poste hsp(Fm) y P3 | Materializa el offset THETAauxfm |
+| Rigida | c2 con Fm | c2 y Fm forman UN cuerpo rigido triangular (THETAauxfm = 51.39 deg) |
+| Rigida | Poste hsp con Fd | El poste sobre Fd es parte del cuerpo de la falange distal (vestigial) |
 | Fijo | Marco A-B-MCF | Completamente fijo al suelo |
 
 ---

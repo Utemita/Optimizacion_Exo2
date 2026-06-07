@@ -4,13 +4,16 @@ Diagrama de eslabones tipo INGENIERIA del exoesqueleto de dedo indice.
 Reproduce las posiciones EXACTAS de cada pivote a partir de las ecuaciones de
 CinematicaExoModificada.m en la posicion de referencia (THETA2=0).
 
-VERSION 3 (2025-06):
-  - Se agregan los postes hsp sobre Fm y Fd (presentes en el mecanismo original).
-  - Se agrega L9 (conexion rigida entre P3 y el poste hsp de Fm) que materializa
-    el offset THETAauxfm entre c2 y la falange medial.
-  - El poste sobre Fd se muestra como vestigial (en el original llevaba L10; en
+VERSION 4 (2025-06):
+  - CORRECCION: c2 (IFP-P3) es un eslabon REAL (balancin del 4B#2), se dibuja
+    con linea SOLIDA. NO es una distancia virtual.
+  - CORRECCION: Se elimina L9 y el "poste hsp sobre Fm". En realidad, c2 y Fm
+    forman un UNICO cuerpo rigido triangular (IFP-P3-IFD) con angulo interno
+    THETAauxfm = 51.39 deg entre la direccion IFP->P3 y la direccion IFP->IFD.
+    No existe un eslabon L9 separado.
+  - El poste sobre Fd se mantiene como vestigial (en el original llevaba L10; en
     el nuevo diseno la falange distal recibe movimiento por el 4B#3).
-  - Las anotaciones de BETA1 y BETA2 ahora muestran el angulo GEOMETRICO real
+  - Las anotaciones de BETA1 y BETA2 muestran el angulo GEOMETRICO real
     medido en el diagrama (lo que se mide con transportador), y no el parametro
     analitico interno. La diferencia se debe a que la solucion analitica vive en
     el lado palmar; al reflejarla al dorsal cambian los angulos visibles, no las
@@ -20,7 +23,7 @@ Estilo de dibujo:
   - Lineas negras / gris oscuro para todos los eslabones.
   - Espesor grueso = cuerpos rigidos (falanges, marco).
   - Espesor medio = eslabones de los mecanismos.
-  - Lineas a trazos = distancias virtuales / bancadas flotantes (c2, d2).
+  - Lineas a trazos = distancias virtuales / bancadas flotantes (d2).
   - Circulos blancos vacios = articulaciones de revolucion.
   - Triangulos achurados = apoyos fijos (ground).
   - Arcos con flechas = angulos.
@@ -165,26 +168,9 @@ def compute_geometry(THETA2):
     IFD = IFP + fm*np.array([np.cos(thfm), np.sin(thfm)])
     pts['P3'] = P3; pts['IFD'] = IFD; pts['thfm'] = thfm
 
-    # ============ POSTES hsp SOBRE LAS FALANGES (mecanismo original) ============
-    # Poste hsp sobre Fm: perpendicular a Fm a una distancia dsp_fm desde IFP.
-    # En el original conecta con L9 hacia P3, materializando el offset THETAauxfm.
-    # La direccion dorsal de Fm se obtiene rotando Fm direccion +90 deg.
-    fm_dir = np.array([np.cos(thfm), np.sin(thfm)])
-    fm_normal_dorsal = np.array([-fm_dir[1], fm_dir[0]])  # rotar +90 (CCW global)
-    # Pero la "dorsal" en este diagrama es el +Y global; necesitamos asegurarnos
-    # de que la normal apunte hacia +Y en el sistema de la falange.
-    # Como el dedo va de MCF a TIP hacia abajo-izquierda, "arriba" (dorsal) en el
-    # diagrama es hacia +Y global. Verificamos signo:
-    if fm_normal_dorsal[1] < 0:
-        fm_normal_dorsal = -fm_normal_dorsal
-    # Punto de anclaje del poste sobre Fm (en el centro de la falange, configurable)
-    dsp_fm = fm / 2.0   # mitad de la falange medial
-    fm_anchor = IFP + dsp_fm * fm_dir
-    fm_post_tip = fm_anchor + hsp * fm_normal_dorsal
-    pts['Fm_anchor'] = fm_anchor
-    pts['Fm_post_tip'] = fm_post_tip
-
-    # Poste hsp sobre Fd: idem, perpendicular dorsal en el centro de Fd.
+    # ============ POSTE hsp SOBRE Fd (vestigial, mecanismo original) ============
+    # Nota: el "poste hsp sobre Fm" fue eliminado. c2 y Fm son un UNICO cuerpo
+    # rigido triangular. No existe L9 ni poste separado sobre Fm.
     fd_dir = np.array([np.cos(0), np.sin(0)])  # placeholder, se sobreescribe abajo
 
     # Tercer mecanismo de 4 barras (DIP)
@@ -355,24 +341,31 @@ label_link(ax, P['P'], P['P2'], 'L6 = %g' % Link6, offset=(0, 3), fontsize=7.5)
 
 # ---- 4B#2 (driver medial) ----
 draw_link(ax, P['P2'], P['P3'], lw=2.0, color=BLK)
-draw_link(ax, P['IFP'], P['P3'], lw=2.0, ls='--', color=BLK)
+draw_link(ax, P['IFP'], P['P3'], lw=2.5, color=BLK)  # c2 es SOLIDO: eslabon REAL (balancin 4B#2)
 draw_link(ax, P['IFP'], P['S2'], lw=1.5, ls='--', color=GRY)
 
 label_link(ax, P['P2'], P['P3'], 'L8 = %g' % Link8, offset=(2, 2.5), fontsize=7.5)
-label_link(ax, P['IFP'], P['P3'], 'c2 = %.2f' % c2, offset=(2, 2), fontsize=7.5)
+label_link(ax, P['IFP'], P['P3'], 'c2 = %.2f (balancin)' % c2, offset=(2, 2), fontsize=7.5)
 label_link(ax, P['IFP'], P['S2'], 'd2 = %.1f (bancada)' % d2, offset=(0, -2.5), fontsize=7, color=GRY)
 
-# ---- POSTE hsp sobre Fm + L9 (estructura del 4B#2) ----
-draw_link(ax, P['Fm_anchor'], P['Fm_post_tip'], lw=2.5, color=ORG)
-ax.plot(P['Fm_anchor'][0], P['Fm_anchor'][1], 'o', color=ORG, markersize=4, zorder=8)
-draw_joint(ax, P['Fm_post_tip'], radius=1.6)
-label_link(ax, P['Fm_anchor'], P['Fm_post_tip'], 'hsp = %g' % hsp,
-           offset=(2.5, 0), fontsize=7, color=ORG)
-label_point(ax, P['Fm_post_tip'], 'Fm_post', dx=1.5, dy=2.5, fontsize=7, color=ORG)
-
-# L9: union rigida entre P3 y el extremo del poste hsp de Fm
-draw_link(ax, P['P3'], P['Fm_post_tip'], lw=2.0, color=ORG)
-label_link(ax, P['P3'], P['Fm_post_tip'], 'L9', offset=(2, 1), fontsize=7.5, color=ORG)
+# ---- ANOTACION: c2 + Fm = cuerpo rigido triangular ----
+# Dibujar un arco de angulo entre c2 (IFP->P3) y Fm (IFP->IFD) para indicar THETAauxfm
+_d_c2 = P['P3'] - P['IFP']
+_d_fm = P['IFD'] - P['IFP']
+dir_c2_draw = np.rad2deg(np.arctan2(_d_c2[1], _d_c2[0]))
+dir_fm_draw = np.rad2deg(np.arctan2(_d_fm[1], _d_fm[0]))
+# Dibujar el arco de THETAauxfm entre c2 y Fm
+if dir_fm_draw > dir_c2_draw:
+    draw_angle_arc(ax, P['IFP'], dir_c2_draw, dir_fm_draw, radius=10, color=ORG)
+else:
+    draw_angle_arc(ax, P['IFP'], dir_fm_draw, dir_c2_draw, radius=10, color=ORG)
+# Etiqueta del angulo
+mid_aux = np.deg2rad((dir_c2_draw + dir_fm_draw) / 2.0)
+label_aux_pt = P['IFP'] + 14*np.array([np.cos(mid_aux), np.sin(mid_aux)])
+ax.text(label_aux_pt[0], label_aux_pt[1],
+        'THETAauxfm\n= %.2f deg\n(c2+Fm = 1 cuerpo)' % THETAauxfm,
+        fontsize=6.5, ha='center', va='center', color=ORG,
+        bbox=dict(boxstyle='round,pad=0.15', fc='white', ec=ORG, lw=0.5))
 
 # ---- POSTE hsp sobre Fd (vestigial - originalmente llevaba L10) ----
 draw_link(ax, P['Fd_anchor'], P['Fd_post_tip'], lw=2.5, color=ORG, ls=':')
@@ -472,11 +465,7 @@ lbl_th1 = P['A'] + 10*np.array([np.cos(np.deg2rad(TETHA1inicial/2)),
 ax.text(lbl_th1[0], lbl_th1[1], 'theta1_ini\n=%g deg' % TETHA1inicial,
         fontsize=6, ha='center', va='center', color=LGR)
 
-# THETAauxfm geometrico
-ax.text(P['Fm_anchor'][0] - 4, P['Fm_anchor'][1] + 8,
-        'THETAauxfm\n=%g deg' % THETAauxfm,
-        fontsize=6, ha='center', va='center', color=ORG,
-        bbox=dict(boxstyle='round,pad=0.15', fc='white', ec=ORG, lw=0.5))
+# (THETAauxfm annotation now drawn as arc near IFP, see above)
 
 # ---- ANOTACIONES DE SOPORTE ----
 ax.annotate('hsp = %g mm\ndsp = %g mm' % (hsp, dsp),
@@ -491,7 +480,7 @@ legend_elements = [
     Line2D([0], [0], color=BLK, lw=3.5, label='Marco fijo (bancada)'),
     Line2D([0], [0], color=BLK, lw=2.0, label='Eslabones de mecanismos'),
     Line2D([0], [0], color=BLK, lw=2.0, ls='--', label='Distancias virtuales'),
-    Line2D([0], [0], color=ORG, lw=2.5, label='Postes hsp + L9 (4B#2 a Fm)'),
+    Line2D([0], [0], color=ORG, lw=2.0, label='c2+Fm = cuerpo rigido (THETAauxfm)'),
     Line2D([0], [0], color=ORG, lw=2.5, ls=':', label='Poste Fd vestigial (sin uso)'),
     Line2D([0], [0], color='white', marker='o', markeredgecolor=BLK,
            markerfacecolor='white', markersize=8, lw=0, label='Articulacion de revolucion'),
@@ -546,9 +535,9 @@ ax.text(0.01, 0.98, param_text, transform=ax.transAxes,
 
 ax.set_aspect('equal')
 ax.grid(True, ls=':', alpha=0.4, color='#999999')
-ax.set_title('Diagrama de Eslabones - Exoesqueleto de Dedo Indice (v3)\n'
+ax.set_title('Diagrama de Eslabones - Exoesqueleto de Dedo Indice (v4)\n'
              'Posicion de referencia: THETA2 = 0 deg (cotas en mm)\n'
-             'Angulos del 4B#3 mostrados como GEOMETRICOS (medidos en el dibujo)',
+             'c2 y Fm = cuerpo rigido triangular | Angulos del 4B#3 GEOMETRICOS',
              fontsize=12, fontweight='bold', color=BLK)
 ax.set_xlabel('X (mm)', fontsize=10)
 ax.set_ylabel('Y (mm)', fontsize=10)
@@ -579,7 +568,6 @@ checks = [
     ("|IFP-CRK3| = Lpc",            dist('IFP', 'CRK3'), Lpc),
     ("|CRK3-ROK3| = Lac",           dist('CRK3', 'ROK3'), Lac),
     ("|IFD-ROK3| = Lpd",            dist('IFD', 'ROK3'), Lpd),
-    ("|Fm_anchor-Fm_post_tip|=hsp", dist('Fm_anchor', 'Fm_post_tip'), hsp),
     ("|Fd_anchor-Fd_post_tip|=hsp", dist('Fd_anchor', 'Fd_post_tip'), hsp),
 ]
 print("=== VERIFICACION DE LONGITUDES (mm) ===")
