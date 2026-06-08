@@ -47,8 +47,15 @@ La bancada es un triangulo rigido formado por A, B y MCF.
 | Lpc | - | 8 | mm | Manivela del 4B#3 (montada en Fp, pivote en IFP) |
 | Lpd | - | 18 | mm | Balancin del 4B#3 (montado en Fd, pivote en IFD) |
 | Lac | - | 8.86 | mm | Acoplador del 4B#3 |
-| BETA1 | - | 40 | deg | Angulo de montaje manivela 4B#3 respecto a Fp |
-| BETA2 | - | 110 | deg | Angulo de montaje balancin 4B#3 respecto a Fd |
+| BETA1_geom | - | -11.4 | deg | **Angulo geometrico** de Lpc respecto al eje Fp (medido en el dibujo dorsal) |
+| BETA2_geom | - | 185.8 | deg | **Angulo geometrico** de Lpd respecto al eje Fd (medido en el dibujo dorsal) |
+
+> **Nota sobre los angulos BETA1 y BETA2:** En el codigo `CinematicaExoModificada.m`
+> aparecen como `BETA1=40` y `BETA2=110`. Estos son los valores que entran en la
+> formulacion analitica (lado palmar). En el diagrama dorsal real (donde tu vas
+> a construir el mecanismo) los angulos que mide el transportador son
+> `BETA1_geom = -11.4 deg` y `BETA2_geom = 185.8 deg`. Las longitudes Lpc, Lpd y
+> Lac son las mismas en ambas representaciones, y las trayectorias son identicas.
 
 ---
 
@@ -74,12 +81,13 @@ MOTOR (en B)
   +-- [4-BARRAS #2]  (entrada: angulo de L7 desde S2)
   |     Eslabones: a2=L7(manivela S2-P2), b2=L8(P2-P3), c2(IFP-P3), d2=sqrt(hsp^2+dsp^2)(IFP-S2)
   |     Salida: angulo de c2 --> THETAfm = THETA4am2 + THETAauxfm
+  |     >> c2 y Fm son UN SOLO cuerpo rigido triangular (angulo interno THETAauxfm) <<
   |
   +-- [4-BARRAS #3]  (entrada: rotacion relativa Fp-Fm, o sea flexion PIP)
         Bancada: falange medial Fm (IFP a IFD, longitud 26 mm)
-        Manivela: Lpc=8 (rigida a Fp, pivote en IFP, offset BETA1=40 deg)
+        Manivela: Lpc=8 (rigida a Fp, pivote en IFP, BETA1_geom = -11.4 deg)
         Acoplador: Lac=8.86 (eslabon flotante CRK3-ROK3)
-        Balancin: Lpd=18 (rigida a Fd, pivote en IFD, offset BETA2=110 deg)
+        Balancin: Lpd=18 (rigida a Fd, pivote en IFD, BETA2_geom = 185.8 deg)
         Salida: angulo de la falange distal THETAfd
 ```
 
@@ -138,48 +146,70 @@ Este mecanismo opera en un sistema de referencia rotado cuyo centro esta en el p
 1. Bancada del 4B#2: segmento IFP-S2 (longitud d2 = sqrt(17^2+18^2) = 24.76 mm).
 2. Manivela: L7 (= a2 = 35 mm), pivote en S2.
 3. Acoplador: L8 (= b2 = 52 mm), conecta P2 con P3.
-4. Balancin: c2 (= 46.01 mm), pivote en IFP, extremo libre = P3.
-5. Conectar P2-P3 (revoluta) y P3-IFP (revoluta).
+4. **Balancin: c2 (= 46.01 mm), pivote en IFP, extremo libre = P3.**
+   c2 es un eslabon REAL (fisico). Forma parte del cuerpo rigido triangular
+   junto con Fm (ver seccion 4.7).
+5. Conectar P2-P3 (revoluta) y P3-IFP (revoluta en el cuerpo rigido c2+Fm).
 6. El angulo de c2 determina la orientacion de la falange medial:
    THETAfm = THETA4am2 + THETAauxfm (= angulo_balancin + 51.39 deg).
 
-### 4.7 Falange medial
+### 4.7 Falange medial: cuerpo rigido triangular (c2 + Fm)
 
-1. Cuerpo rigido de longitud fm = 26 mm.
-2. Pivote en IFP (articulacion PIP).
-3. Su angulo es THETAfm.
-4. Su extremo distal es IFD (articulacion DIP).
+La falange medial y el balancin c2 del 4B#2 forman un **unico cuerpo rigido**
+con forma triangular. NO existe un eslabon "L9" separado ni un "poste hsp sobre Fm".
 
-### 4.8 Tercer mecanismo de 4 barras (driver DIP)
+Geometria del cuerpo rigido triangular:
 
-Este es el mecanismo mas critico para la flexion independiente del DIP.
-Se construye del lado DORSAL de la falange medial (arriba en el diagrama).
+1. **Pivote en IFP** (articulacion PIP, revoluta).
+2. **Brazo 1 (c2)**: longitud 46.01 mm, desde IFP hasta P3.
+   - P3 es donde se conecta L8 (acoplador del 4B#2) mediante revoluta.
+   - c2 es el balancin del 4B#2 (eslabon real, fisico).
+3. **Brazo 2 (Fm)**: longitud 26 mm, desde IFP hasta IFD.
+   - IFD es la articulacion DIP donde pivotea la falange distal.
+   - Es la falange medial propiamente dicha.
+4. **Angulo interno THETAauxfm = 51.39 deg**: angulo entre la direccion IFP->P3
+   y la direccion IFP->IFD, medido dentro del cuerpo rigido.
+
+En CAD se modela como:
+- Una sola pieza (o cuerpo) con tres puntos clave: IFP, P3, IFD.
+- Revoluta en IFP (permite que rote respecto a la falange proximal).
+- Revoluta en P3 (permite que L8 lo accione).
+- Revoluta en IFD (permite que la falange distal rote respecto a el).
+- La pieza puede tener forma de triangulo plano o de "Y" con los brazos
+  de 46.01 mm y 26 mm separados por 51.39 grados.
+
+El angulo de la falange medial es: THETAfm = THETA4am2 + THETAauxfm,
+donde THETA4am2 es el angulo de salida del balancin c2 del 4B#2.
+
+### 4.8 Tercer mecanismo de 4 barras (driver DIP) - LADO DORSAL
+
+Este es el mecanismo nuevo, que reemplaza al offset rigido entre Fd y Fm. Se
+construye del lado **DORSAL** del dedo (lado opuesto a la palma).
 
 1. **Bancada**: la propia falange medial (fm = 26 mm, de IFP a IFD).
-2. **Manivela (Lpc = 8 mm)**:
-   - Rigidamente unida a la falange PROXIMAL.
-   - Su pivote es la articulacion IFP.
-   - Forma un angulo BETA1 = 40 deg respecto a la direccion de la falange proximal.
-   - Se extiende hacia el lado DORSAL (arriba de la linea IFP-IFD).
-   - Cuando la falange proximal gira, esta manivela gira con ella.
-3. **Acoplador (Lac = 8.86 mm)**:
-   - Eslabon que conecta la punta de la manivela (CRK3) con la punta del balancin (ROK3).
-   - Revoluta en ambos extremos. NO es flotante: esta conectado en CRK3 y ROK3.
-   - Se ubica del lado dorsal, visible en el diagrama.
-4. **Balancin (Lpd = 18 mm)**:
-   - Rigidamente unido a la falange DISTAL.
-   - Su pivote es la articulacion IFD.
-   - Forma un angulo BETA2 = 110 deg respecto a la direccion de la falange distal.
-   - Se extiende hacia el lado DORSAL (arriba de la linea IFP-IFD).
-   - La orientacion de la falange distal queda determinada por el angulo de este balancin.
+2. **Manivela Lpc** (8 mm): rigidamente unida a la falange PROXIMAL (no a Fm).
+   - Pivote en la articulacion IFP.
+   - Anclaje a Fp con `BETA1_geom = -11.4 deg` (casi alineada con Fp, ligeramente
+     hacia dorsal). En el dibujo, Lpc sale de IFP "hacia atras" (hacia MCF) con
+     una pequena inclinacion dorsal.
+   - Su extremo es CRK3.
+3. **Acoplador Lac** (8.86 mm): eslabon plano con dos agujeros pasantes.
+   - Pivote (revoluta) en CRK3 con la manivela.
+   - Pivote (revoluta) en ROK3 con el balancin.
+4. **Balancin Lpd** (18 mm): rigidamente unida a la falange DISTAL (no a Fm).
+   - Pivote en la articulacion IFD.
+   - Anclaje a Fd con `BETA2_geom = 185.8 deg` (casi opuesta al eje Fd, dorsal).
+     Es decir, Lpd sale de IFD apuntando "hacia IFP" (proximalmente) con una
+     pequena inclinacion dorsal.
+   - Su extremo es ROK3.
 
-**Como funciona**: Cuando la articulacion PIP se flexiona (la falange medial rota
+**Como funciona:** Cuando la articulacion PIP se flexiona (la falange medial rota
 respecto a la proximal), la manivela Lpc -- que esta rigida a la proximal -- cambia
 su angulo relativo respecto a la bancada (la medial). Este cambio angular acciona
 el mecanismo de 4 barras y produce una rotacion del balancin Lpd, que a su vez
 mueve la falange distal.
 
-**Resultado**: la articulacion DIP se mueve con una excursion de ~30 grados
+**Resultado:** la articulacion DIP se mueve con una excursion de ~30 grados
 (32 a 62 deg relativo a la medial) de forma monotona durante el barrido completo
 de la manivela de entrada.
 
@@ -187,8 +217,11 @@ de la manivela de entrada.
 
 1. Cuerpo rigido de longitud fd = 24 mm.
 2. Pivote en IFD (articulacion DIP).
-3. Su angulo es THETAfd = THETAfm + alpha2 - BETA2 (en radianes).
+3. Su angulo es THETAfd, determinado por el 4B#3.
 4. Su punta es el extremo del dedo (TIP).
+5. **Poste hsp sobre Fd**: en el mecanismo original llevaba L10. En el diseno
+   nuevo este poste queda VESTIGIAL (no se conecta a nada). Puede omitirse en
+   el CAD o dejarse como referencia geometrica.
 
 ---
 
@@ -201,6 +234,8 @@ de la manivela de entrada.
 | Revoluta | Cada union de eslabones | Permite rotacion relativa |
 | Rigida | Lpc con Fp | La manivela del 4B#3 es parte del cuerpo de la falange proximal |
 | Rigida | Lpd con Fd | El balancin del 4B#3 es parte del cuerpo de la falange distal |
+| Rigida | c2 con Fm | c2 y Fm forman UN cuerpo rigido triangular (THETAauxfm = 51.39 deg) |
+| Rigida | Poste hsp con Fd | El poste sobre Fd es parte del cuerpo de la falange distal (vestigial) |
 | Fijo | Marco A-B-MCF | Completamente fijo al suelo |
 
 ---
@@ -226,24 +261,24 @@ THETA2, pxIFP, pyIFP, pxIFD, pyIFD, pxTIP, pyTIP, DIP_relativo
 
 ## 7. Notas sobre el montaje fisico
 
-- El diagrama muestra las posiciones EXACTAS calculadas por las ecuaciones de MATLAB.
-- Los angulos BETA1 y BETA2 determinan hacia que lado del eje de la falange se
-  extienden la manivela y el balancin del 4B#3 respectivamente.
-- **MONTAJE DORSAL**: El tercer mecanismo de 4 barras (4B#3) se construye del
-  lado DORSAL del dedo (lado opuesto a la palma, +Y en el diagrama). Esto es
-  necesario porque las falanges apoyan su lado palmar contra los objetos
-  manipulados.
-- El diagrama muestra CRK3 y ROK3 ARRIBA de la linea de la falange medial
-  (IFP-IFD). Esta es la posicion de construccion real (dorsal).
+- **Diagrama generado** (`diagrama_mecanismo_completo.png`): muestra las
+  posiciones EXACTAS calculadas por las ecuaciones de MATLAB, con CRK3 y ROK3
+  reflejados al lado dorsal.
+- **Plano general cotado** (`plano_4B3_general.png`): vista lateral del 4B#3
+  con `BETA1_geom`, `BETA2_geom`, Lpc, Lac, Lpd cotados.
+- **Plano de piezas** (`plano_4B3_piezas.png`): planos de fabricacion
+  individuales del acoplador y los postes con todas las dimensiones.
+- **Archivos STEP/STL** (`step_4B3/`):
+  - `acoplador_Lac.step` / `.stl`: barra plana 8.86 mm entre agujeros.
+  - `poste_Lpc.step` / `.stl`: oreja para Fp, longitud efectiva 8 mm.
+  - `poste_Lpd.step` / `.stl`: oreja para Fd, longitud efectiva 18 mm.
+  - `pasador.step` / `.stl`: pin de articulacion (D = 1.5 mm).
+- **MONTAJE DORSAL** : el 4B#3 se construye del lado DORSAL del dedo (lado
+  opuesto a la palma, +Y en el diagrama). Esto es necesario porque las falanges
+  apoyan su lado palmar contra los objetos manipulados.
 - La reflexion del mecanismo sobre la linea de la bancada (IFP-IFD) preserva
-  TODAS las longitudes de eslabon (Lpc=8, Lac=8.86, Lpd=18 mm) y los angulos
-  de montaje (BETA1=40, BETA2=110 deg). La cinematica de salida (THETAfd) es
-  identica.
-- En CAD, construir los pivotes CRK3 y ROK3 del lado dorsal, exactamente como
-  aparecen en `diagrama_mecanismo_completo.png`.
-- NO hay eslabones flotantes: cada eslabon del 4B#3 esta conectado en ambos
-  extremos por articulaciones de revolucion, y la manivela/balancin estan
-  rigidamente unidos a sus respectivas falanges (proximal y distal).
+  TODAS las longitudes de eslabon (Lpc=8, Lac=8.86, Lpd=18 mm). La cinematica
+  de salida (THETAfd) es identica.
 
 ---
 
@@ -252,8 +287,12 @@ THETA2, pxIFP, pyIFP, pxIFD, pyIFD, pxTIP, pyTIP, DIP_relativo
 | Archivo | Descripcion |
 |---------|-------------|
 | `CinematicaExoModificada.m` | Cinematica completa en MATLAB (fuente autoritativa) |
-| `diagrama_mecanismo.py` | Genera el diagrama de eslabones (este doc lo acompanha) |
-| `diagrama_mecanismo_completo.png` | Diagrama generado (posicion THETA2=0) |
-| `generar_trayectorias_referencia.py` | Genera CSV de trayectorias para validacion |
-| `trayectorias_referencia.csv` | Datos de trayectorias de referencia |
-| `Analisis_Modificacion_DIP.md` | Documento de analisis completo del tercer mecanismo |
+| `diagrama_mecanismo.py` | Genera el diagrama de eslabones general |
+| `diagrama_mecanismo_completo.png` | Diagrama completo (postes hsp + 4B#3) |
+| `plano_4B3.py` | Genera los planos cotados del 4B#3 |
+| `plano_4B3_general.png` | Plano cotado general del 4B#3 montado |
+| `plano_4B3_piezas.png` | Plano de fabricacion de las piezas individuales |
+| `generar_step_4b3.py` | Genera los STEP/STL de las piezas |
+| `step_4B3/*.step` | Archivos CAD de las piezas (formato STEP) |
+| `step_4B3/*.stl` | Archivos CAD de las piezas (formato STL) |
+| `Analisis_Modificacion_DIP.md` | Documento de analisis del tercer mecanismo |

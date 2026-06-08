@@ -4,11 +4,26 @@ Diagrama de eslabones tipo INGENIERIA del exoesqueleto de dedo indice.
 Reproduce las posiciones EXACTAS de cada pivote a partir de las ecuaciones de
 CinematicaExoModificada.m en la posicion de referencia (THETA2=0).
 
+VERSION 4 (2025-06):
+  - CORRECCION: c2 (IFP-P3) es un eslabon REAL (balancin del 4B#2), se dibuja
+    con linea SOLIDA. NO es una distancia virtual.
+  - CORRECCION: Se elimina L9 y el "poste hsp sobre Fm". En realidad, c2 y Fm
+    forman un UNICO cuerpo rigido triangular (IFP-P3-IFD) con angulo interno
+    THETAauxfm = 51.39 deg entre la direccion IFP->P3 y la direccion IFP->IFD.
+    No existe un eslabon L9 separado.
+  - El poste sobre Fd se mantiene como vestigial (en el original llevaba L10; en
+    el nuevo diseno la falange distal recibe movimiento por el 4B#3).
+  - Las anotaciones de BETA1 y BETA2 muestran el angulo GEOMETRICO real
+    medido en el diagrama (lo que se mide con transportador), y no el parametro
+    analitico interno. La diferencia se debe a que la solucion analitica vive en
+    el lado palmar; al reflejarla al dorsal cambian los angulos visibles, no las
+    longitudes ni las trayectorias.
+
 Estilo de dibujo:
   - Lineas negras / gris oscuro para todos los eslabones.
   - Espesor grueso = cuerpos rigidos (falanges, marco).
   - Espesor medio = eslabones de los mecanismos.
-  - Lineas a trazos = distancias virtuales / bancadas flotantes (c2, d2).
+  - Lineas a trazos = distancias virtuales / bancadas flotantes (d2).
   - Circulos blancos vacios = articulaciones de revolucion.
   - Triangulos achurados = apoyos fijos (ground).
   - Arcos con flechas = angulos.
@@ -16,8 +31,8 @@ Estilo de dibujo:
   - Mecanismos distribuidos sobre el dedo (dorsal=arriba).
   - Las falanges forman la linea inferior (palmar=abajo).
 
-Un modelo CAD construido con las longitudes y angulos aqui indicados
-reproduce EXACTAMENTE las trayectorias de CinematicaExoModificada.m.
+Un modelo CAD construido con las longitudes y los angulos GEOMETRICOS aqui
+indicados reproduce EXACTAMENTE las trayectorias de CinematicaExoModificada.m.
 """
 import numpy as np
 import matplotlib
@@ -38,8 +53,10 @@ hsp = 17.0; dsp = 18.0
 fp = 49.0; fm = 26.0; fd = 24.0
 THETAauxfm = 51.39; THETAauxfd = 38.78
 reng = 2.0
-# Tercer mecanismo 4B (DIP)
-Lpc = 8.0; Lpd = 18.0; Lac = 8.86; BETA1 = 40.0; BETA2 = 110.0
+# Tercer mecanismo 4B (DIP) - parametros ANALITICOS internos (no son los que se ven)
+Lpc = 8.0; Lpd = 18.0; Lac = 8.86
+BETA1 = 40.0       # parametro analitico (palmar). El angulo geometrico real se calcula.
+BETA2 = 110.0      # parametro analitico (palmar). El angulo geometrico real se calcula.
 
 # Variables derivadas
 r1 = Link4; r2 = Link3; r3 = Bancada1 / 2.0; r4 = Link1; r5 = Link2
@@ -63,7 +80,7 @@ def four_bar_open(a_, b_, c_, d_, th2_, th1_):
 
 
 def _reflect_about_line(point, line_start, line_end):
-    """Refleja un punto sobre una linea definida por dos puntos (preserva distancias)."""
+    """Refleja un punto sobre una linea definida por dos puntos."""
     d_vec = line_end - line_start
     d_vec = d_vec / np.linalg.norm(d_vec)
     v = point - line_start
@@ -151,6 +168,11 @@ def compute_geometry(THETA2):
     IFD = IFP + fm*np.array([np.cos(thfm), np.sin(thfm)])
     pts['P3'] = P3; pts['IFD'] = IFD; pts['thfm'] = thfm
 
+    # ============ POSTE hsp SOBRE Fd (vestigial, mecanismo original) ============
+    # Nota: el "poste hsp sobre Fm" fue eliminado. c2 y Fm son un UNICO cuerpo
+    # rigido triangular. No existe L9 ni poste separado sobre Fm.
+    fd_dir = np.array([np.cos(0), np.sin(0)])  # placeholder, se sobreescribe abajo
+
     # Tercer mecanismo de 4 barras (DIP)
     thfp_ = pts['thfp']
     alpha1 = thfp_ + np.deg2rad(BETA1) - thfm
@@ -161,7 +183,6 @@ def compute_geometry(THETA2):
     K = (Px**2 + Py**2 + Lpd**2 - Lac**2) / (2*Lpd)
     phi = np.arctan2(Py, Px)
     alpha2 = phi - np.arccos(np.clip(K / R, -1, 1))
-    # Continuidad de angulo (unwrap respecto a llamada anterior)
     if hasattr(compute_geometry, '_alpha2_prev') and compute_geometry._alpha2_prev is not None:
         while alpha2 - compute_geometry._alpha2_prev > np.pi:
             alpha2 -= 2*np.pi
@@ -174,34 +195,39 @@ def compute_geometry(THETA2):
     TIP = IFD + fd*np.array([np.cos(thfd), np.sin(thfd)])
 
     # Reflejar CRK3 y ROK3 al lado DORSAL (sobre la linea IFP-IFD)
-    # La solucion analitica los coloca del lado palmar; el montaje fisico
-    # es dorsal. La reflexion preserva todas las longitudes.
     CRK3 = _reflect_about_line(CRK3, IFP, IFD)
     ROK3 = _reflect_about_line(ROK3, IFP, IFD)
 
     pts['CRK3'] = CRK3; pts['ROK3'] = ROK3; pts['TIP'] = TIP; pts['thfd'] = thfd
+
+    # Poste hsp sobre Fd (post-calculo de TIP para conocer thfd)
+    fd_dir = np.array([np.cos(thfd), np.sin(thfd)])
+    fd_normal_dorsal = np.array([-fd_dir[1], fd_dir[0]])
+    if fd_normal_dorsal[1] < 0:
+        fd_normal_dorsal = -fd_normal_dorsal
+    dsp_fd = fd / 2.0
+    fd_anchor = IFD + dsp_fd * fd_dir
+    fd_post_tip = fd_anchor + hsp * fd_normal_dorsal
+    pts['Fd_anchor'] = fd_anchor
+    pts['Fd_post_tip'] = fd_post_tip
 
     return pts
 
 
 # ===================== FUNCIONES DE DIBUJO =====================
 def draw_link(ax, p1, p2, lw=2.0, ls='-', color='k', zorder=3):
-    """Dibuja un eslabon como linea."""
     ax.plot([p1[0], p2[0]], [p1[1], p2[1]], ls=ls, color=color,
             lw=lw, zorder=zorder, solid_capstyle='round')
 
 
 def draw_joint(ax, pos, radius=1.8, color='k', zorder=8):
-    """Dibuja una articulacion de revolucion (circulo blanco con borde)."""
     circ = Circle(pos, radius, facecolor='white', edgecolor=color,
                   lw=1.5, zorder=zorder)
     ax.add_patch(circ)
 
 
 def draw_ground(ax, pos, angle_deg=0, size=6.0, color='k', zorder=7):
-    """Dibuja un soporte fijo (triangulo con achurado)."""
     ang = np.deg2rad(angle_deg)
-    # Triangulo apuntando hacia abajo desde el punto
     base_dir = np.array([np.cos(ang), np.sin(ang)])
     perp = np.array([-np.sin(ang), np.cos(ang)])
     v0 = pos
@@ -210,7 +236,6 @@ def draw_ground(ax, pos, angle_deg=0, size=6.0, color='k', zorder=7):
     tri = Polygon([v0, v1, v2], closed=True, facecolor='none',
                   edgecolor=color, lw=1.5, zorder=zorder)
     ax.add_patch(tri)
-    # Lineas de achurado
     base_center = pos - size*base_dir
     for i in range(4):
         t = (i + 0.5) / 4.0
@@ -222,12 +247,10 @@ def draw_ground(ax, pos, angle_deg=0, size=6.0, color='k', zorder=7):
 
 def draw_angle_arc(ax, center, angle_start_deg, angle_end_deg, radius=8.0,
                    label='', color='k', fontsize=7.5, label_offset=1.2):
-    """Dibuja un arco con flecha para indicar un angulo."""
     arc = Arc(center, 2*radius, 2*radius, angle=0,
               theta1=angle_start_deg, theta2=angle_end_deg,
               color=color, lw=1.0, zorder=5)
     ax.add_patch(arc)
-    # Flecha al final del arco
     mid_ang = np.deg2rad((angle_start_deg + angle_end_deg) / 2.0)
     label_pos = center + (radius + label_offset*3)*np.array([np.cos(mid_ang), np.sin(mid_ang)])
     if label:
@@ -236,7 +259,6 @@ def draw_angle_arc(ax, center, angle_start_deg, angle_end_deg, radius=8.0,
 
 
 def label_link(ax, p1, p2, text, offset=(0, 2.5), fontsize=7.5, color='k', ha='center'):
-    """Coloca una etiqueta en el punto medio de un eslabon."""
     mid = (p1 + p2) / 2.0 + np.array(offset)
     ax.text(mid[0], mid[1], text, fontsize=fontsize, ha=ha, va='center',
             color=color, zorder=10,
@@ -245,7 +267,6 @@ def label_link(ax, p1, p2, text, offset=(0, 2.5), fontsize=7.5, color='k', ha='c
 
 def label_point(ax, pos, text, dx=2.0, dy=2.0, fontsize=7.5, color='k',
                 ha='left', va='bottom', bold=False):
-    """Coloca una etiqueta junto a un punto."""
     weight = 'bold' if bold else 'normal'
     ax.annotate(text, (pos[0] + dx, pos[1] + dy), fontsize=fontsize,
                 color=color, ha=ha, va=va, fontweight=weight, zorder=10)
@@ -254,16 +275,16 @@ def label_point(ax, pos, text, dx=2.0, dy=2.0, fontsize=7.5, color='k',
 # ===================== GENERAR DIAGRAMA =====================
 P = compute_geometry(0.0)
 
-fig, ax = plt.subplots(figsize=(18, 11))
+fig, ax = plt.subplots(figsize=(20, 12))
 ax.set_facecolor('white')
 
-# Colores: todo en escala de grises/negro para estilo de ingenieria
 BLK = '#000000'
 DRK = '#333333'
 GRY = '#555555'
 LGR = '#777777'
+ORG = '#cc6600'
 
-# ---- FALANGES (cuerpos rigidos, lineas mas gruesas) ----
+# ---- FALANGES (cuerpos rigidos) ----
 draw_link(ax, P['MCF'], P['IFP'], lw=6, color=DRK)
 draw_link(ax, P['IFP'], P['IFD'], lw=6, color=DRK)
 draw_link(ax, P['IFD'], P['TIP'], lw=6, color=DRK)
@@ -279,19 +300,17 @@ draw_link(ax, P['A'], P['MCF'], lw=3.5, color=BLK)
 label_link(ax, P['A'], P['B'], 'B1 = 2r3 = %g mm' % Bancada1, offset=(0, 3), color=BLK, fontsize=8)
 label_link(ax, P['A'], P['MCF'], 'B2 = d = %g mm' % Bancada2, offset=(-6, 0), color=BLK, fontsize=8)
 
-# Soportes fijos (ground)
 draw_ground(ax, P['A'], angle_deg=90, size=5.5)
 draw_ground(ax, P['B'], angle_deg=90, size=5.5)
 draw_ground(ax, P['MCF'], angle_deg=180, size=5.5)
 
-# Engranes (indicacion esquematica)
 ax.add_patch(Circle(P['B'], 5.0, fill=False, ec=BLK, lw=1.2, ls='--', zorder=2))
 ax.add_patch(Circle(P['A'], 2.5, fill=False, ec=BLK, lw=1.2, ls='--', zorder=2))
 ax.annotate('Motor\n(reng=%g)' % reng, (P['B'][0] + 7, P['B'][1] + 7),
             fontsize=8, color=BLK, ha='left', va='bottom',
             bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=BLK, lw=0.8))
 
-# ---- MECANISMO 5 BARRAS #1 ----
+# ---- 5B#1 ----
 draw_link(ax, P['A'], P['M4'], lw=2.0, color=BLK)
 draw_link(ax, P['M4'], P['P'], lw=2.0, color=BLK)
 draw_link(ax, P['B'], P['J2'], lw=2.0, color=BLK)
@@ -302,7 +321,7 @@ label_link(ax, P['M4'], P['P'], 'L3 = %g' % Link3, offset=(0, 2.5), fontsize=7.5
 label_link(ax, P['B'], P['J2'], 'L1 = %g' % Link1, offset=(3, 1), fontsize=7.5)
 label_link(ax, P['J2'], P['P'], 'L2 = %g' % Link2, offset=(2, 2), fontsize=7.5)
 
-# ---- MECANISMO 4 BARRAS #1 (soporte falange proximal) ----
+# ---- 4B#1 (soporte falange proximal) ----
 draw_link(ax, P['M4'], P['S1'], lw=2.0, color=BLK)
 draw_link(ax, P['MCF'], P['S1'], lw=2.0, color=BLK)
 
@@ -310,38 +329,63 @@ label_link(ax, P['M4'], P['S1'], 'L5 = %g' % Link5, offset=(2, 2), fontsize=7.5)
 cval = np.sqrt(hsp**2 + dsp**2)
 label_link(ax, P['MCF'], P['S1'], 'c = %.1f' % cval, offset=(-3, -2), fontsize=7.5)
 
-# Soportes S1, S2 sobre la falange proximal
-# S1 y S2 son pines de articulacion sobre la falange con altura hsp y distancia dsp
 draw_link(ax, P['S1'], P['S2'], lw=1.5, ls='--', color=GRY)
 label_link(ax, P['S1'], P['S2'], 'fp-2dsp = %g' % (fp - 2*dsp), offset=(0, 3), fontsize=7, color=GRY)
 
-# ---- MECANISMO 5 BARRAS #2 ----
+# ---- 5B#2 ----
 draw_link(ax, P['S2'], P['P2'], lw=2.0, color=BLK)
 draw_link(ax, P['P'], P['P2'], lw=2.0, color=BLK)
 
 label_link(ax, P['S2'], P['P2'], 'L7 = %g' % Link7, offset=(2, 2.5), fontsize=7.5)
 label_link(ax, P['P'], P['P2'], 'L6 = %g' % Link6, offset=(0, 3), fontsize=7.5)
 
-# ---- MECANISMO 4 BARRAS #2 (driver medial) ----
+# ---- 4B#2 (driver medial) ----
 draw_link(ax, P['P2'], P['P3'], lw=2.0, color=BLK)
-draw_link(ax, P['IFP'], P['P3'], lw=2.0, ls='--', color=BLK)
+draw_link(ax, P['IFP'], P['P3'], lw=2.5, color=BLK)  # c2 es SOLIDO: eslabon REAL (balancin 4B#2)
 draw_link(ax, P['IFP'], P['S2'], lw=1.5, ls='--', color=GRY)
 
 label_link(ax, P['P2'], P['P3'], 'L8 = %g' % Link8, offset=(2, 2.5), fontsize=7.5)
-label_link(ax, P['IFP'], P['P3'], 'c2 = %.2f' % c2, offset=(2, 2), fontsize=7.5)
+label_link(ax, P['IFP'], P['P3'], 'c2 = %.2f (balancin)' % c2, offset=(2, 2), fontsize=7.5)
 label_link(ax, P['IFP'], P['S2'], 'd2 = %.1f (bancada)' % d2, offset=(0, -2.5), fontsize=7, color=GRY)
 
-# ---- MECANISMO 4 BARRAS #3 (DIP) ----
+# ---- ANOTACION: c2 + Fm = cuerpo rigido triangular ----
+# Dibujar un arco de angulo entre c2 (IFP->P3) y Fm (IFP->IFD) para indicar THETAauxfm
+_d_c2 = P['P3'] - P['IFP']
+_d_fm = P['IFD'] - P['IFP']
+dir_c2_draw = np.rad2deg(np.arctan2(_d_c2[1], _d_c2[0]))
+dir_fm_draw = np.rad2deg(np.arctan2(_d_fm[1], _d_fm[0]))
+# Dibujar el arco de THETAauxfm entre c2 y Fm
+if dir_fm_draw > dir_c2_draw:
+    draw_angle_arc(ax, P['IFP'], dir_c2_draw, dir_fm_draw, radius=10, color=ORG)
+else:
+    draw_angle_arc(ax, P['IFP'], dir_fm_draw, dir_c2_draw, radius=10, color=ORG)
+# Etiqueta del angulo
+mid_aux = np.deg2rad((dir_c2_draw + dir_fm_draw) / 2.0)
+label_aux_pt = P['IFP'] + 14*np.array([np.cos(mid_aux), np.sin(mid_aux)])
+ax.text(label_aux_pt[0], label_aux_pt[1],
+        'THETAauxfm\n= %.2f deg\n(c2+Fm = 1 cuerpo)' % THETAauxfm,
+        fontsize=6.5, ha='center', va='center', color=ORG,
+        bbox=dict(boxstyle='round,pad=0.15', fc='white', ec=ORG, lw=0.5))
+
+# ---- POSTE hsp sobre Fd (vestigial - originalmente llevaba L10) ----
+draw_link(ax, P['Fd_anchor'], P['Fd_post_tip'], lw=2.5, color=ORG, ls=':')
+ax.plot(P['Fd_anchor'][0], P['Fd_anchor'][1], 'o', color=ORG, markersize=4, zorder=8)
+ax.plot(P['Fd_post_tip'][0], P['Fd_post_tip'][1], 's', color=ORG, markersize=5, zorder=8,
+        markerfacecolor='white')
+label_link(ax, P['Fd_anchor'], P['Fd_post_tip'], 'hsp = %g\n(original L10)' % hsp,
+           offset=(3.5, 0), fontsize=6.5, color=ORG)
+label_point(ax, P['Fd_post_tip'], 'Fd_post', dx=1.5, dy=-3.5, fontsize=7, color=ORG)
+
+# ---- 4B#3 (DIP) ----
 draw_link(ax, P['IFP'], P['CRK3'], lw=2.5, color=BLK)
 draw_link(ax, P['CRK3'], P['ROK3'], lw=2.5, color=BLK)
 draw_link(ax, P['IFD'], P['ROK3'], lw=2.5, color=BLK)
-# La bancada del 4B#3 es la falange medial (IFP -> IFD), ya dibujada
 
 label_link(ax, P['IFP'], P['CRK3'], 'Lpc = %g' % Lpc, offset=(-1, 2.5), fontsize=7.5)
 label_link(ax, P['CRK3'], P['ROK3'], 'Lac = %.2f' % Lac, offset=(0, 2.5), fontsize=7.5)
 label_link(ax, P['IFD'], P['ROK3'], 'Lpd = %g' % Lpd, offset=(1, 2.5), fontsize=7.5)
 
-# ---- ARTICULACIONES (circulos blancos) ----
+# ---- ARTICULACIONES ----
 joints_main = {
     'A': ('A', -3, 4),
     'B': ('B', 2, 4),
@@ -363,79 +407,108 @@ for key, (lbl, dx, dy) in joints_main.items():
     draw_joint(ax, P[key], radius=1.6)
     label_point(ax, P[key], lbl, dx=dx, dy=dy, fontsize=7, bold=True)
 
-# ---- ANGULOS ----
-# BETA1: angulo de montaje de la manivela respecto a la proximal en IFP
-thfp_deg = np.rad2deg(P['thfp'])
-draw_angle_arc(ax, P['IFP'], thfp_deg, thfp_deg + BETA1, radius=10, color=GRY)
-label_pt_beta1 = P['IFP'] + 14*np.array([
-    np.cos(np.deg2rad(thfp_deg + BETA1/2)),
-    np.sin(np.deg2rad(thfp_deg + BETA1/2))])
-ax.text(label_pt_beta1[0], label_pt_beta1[1], 'BETA1\n=%g deg' % BETA1,
-        fontsize=6.5, ha='center', va='center', color=GRY)
+# ====================================================================
+# ANGULOS GEOMETRICOS REALES (medidos en el diagrama dorsal)
+# ====================================================================
+def _angle_deg(v_from, v_to):
+    d = v_to - v_from
+    return np.rad2deg(np.arctan2(d[1], d[0]))
 
-# BETA2: angulo de montaje del balancin respecto a la distal en IFD
-thfd_deg = np.rad2deg(P['thfd'])
-draw_angle_arc(ax, P['IFD'], thfd_deg, thfd_deg + BETA2, radius=10, color=GRY)
-label_pt_beta2 = P['IFD'] + 14*np.array([
-    np.cos(np.deg2rad(thfd_deg + BETA2/2)),
-    np.sin(np.deg2rad(thfd_deg + BETA2/2))])
-ax.text(label_pt_beta2[0], label_pt_beta2[1], 'BETA2\n=%g deg' % BETA2,
-        fontsize=6.5, ha='center', va='center', color=GRY)
 
-# theta_1_inicial
+def _ang_ccw(a_from, a_to):
+    return (a_to - a_from) % 360
+
+
+# BETA1 geometrico: de Fp (MCF->IFP) a Lpc dorsal (IFP->CRK3)
+dir_fp = _angle_deg(P['MCF'], P['IFP'])
+dir_lpc = _angle_deg(P['IFP'], P['CRK3'])
+beta1_geom = _ang_ccw(dir_fp, dir_lpc)
+# Si el angulo es mayor a 180, lo expresamos como negativo (mas natural para el lector)
+beta1_geom_short = beta1_geom if beta1_geom <= 180 else beta1_geom - 360
+
+# BETA2 geometrico: de Fd (IFD->TIP) a Lpd dorsal (IFD->ROK3)
+dir_fd = _angle_deg(P['IFD'], P['TIP'])
+dir_lpd = _angle_deg(P['IFD'], P['ROK3'])
+beta2_geom = _ang_ccw(dir_fd, dir_lpd)
+
+# THETAauxfm geometrico: de c2 (IFP->P3) a Fm (IFP->IFD)
+dir_c2 = _angle_deg(P['IFP'], P['P3'])
+dir_fm = _angle_deg(P['IFP'], P['IFD'])
+theta_aux_fm_geom = _ang_ccw(dir_c2, dir_fm)
+if theta_aux_fm_geom > 180:
+    theta_aux_fm_geom -= 360
+
+# ---- DIBUJAR ARCOS DE BETA1 GEOMETRICO ----
+draw_angle_arc(ax, P['IFP'], dir_lpc, dir_fp, radius=12, color=GRY)
+mid_ang = np.deg2rad((dir_lpc + dir_fp) / 2.0) if abs(dir_fp - dir_lpc) < 180 else \
+          np.deg2rad((dir_lpc + dir_fp + 360) / 2.0)
+label_pt_beta1 = P['IFP'] + 16*np.array([np.cos(mid_ang), np.sin(mid_ang)])
+ax.text(label_pt_beta1[0], label_pt_beta1[1],
+        'BETA1_geom\n=%.1f deg' % beta1_geom_short,
+        fontsize=7, ha='center', va='center', color=GRY,
+        bbox=dict(boxstyle='round,pad=0.15', fc='white', ec=GRY, lw=0.5))
+
+# ---- DIBUJAR ARCOS DE BETA2 GEOMETRICO ----
+# arco de Fd a Lpd CCW (recorre beta2_geom grados)
+draw_angle_arc(ax, P['IFD'], dir_fd, dir_fd + beta2_geom, radius=14, color=GRY)
+mid_b2 = np.deg2rad(dir_fd + beta2_geom / 2.0)
+label_pt_beta2 = P['IFD'] + 19*np.array([np.cos(mid_b2), np.sin(mid_b2)])
+ax.text(label_pt_beta2[0], label_pt_beta2[1],
+        'BETA2_geom\n=%.1f deg' % beta2_geom,
+        fontsize=7, ha='center', va='center', color=GRY,
+        bbox=dict(boxstyle='round,pad=0.15', fc='white', ec=GRY, lw=0.5))
+
+# theta1_inicial
 draw_angle_arc(ax, P['A'], 0, TETHA1inicial, radius=7, color=LGR)
 lbl_th1 = P['A'] + 10*np.array([np.cos(np.deg2rad(TETHA1inicial/2)),
                                   np.sin(np.deg2rad(TETHA1inicial/2))])
 ax.text(lbl_th1[0], lbl_th1[1], 'theta1_ini\n=%g deg' % TETHA1inicial,
         fontsize=6, ha='center', va='center', color=LGR)
 
-# THETAauxfm
-th4am2_deg = np.rad2deg(np.arctan2(P['P3'][1] - P['IFP'][1], P['P3'][0] - P['IFP'][0]))
-thfm_deg = np.rad2deg(P['thfm'])
-draw_angle_arc(ax, P['IFP'], th4am2_deg, thfm_deg, radius=12, color=LGR)
-lbl_auxfm = P['IFP'] + 16*np.array([np.cos(np.deg2rad((th4am2_deg + thfm_deg)/2)),
-                                      np.sin(np.deg2rad((th4am2_deg + thfm_deg)/2))])
-ax.text(lbl_auxfm[0], lbl_auxfm[1], 'THETAauxfm\n=%.2f deg' % THETAauxfm,
-        fontsize=6, ha='center', va='center', color=LGR)
+# (THETAauxfm annotation now drawn as arc near IFP, see above)
 
 # ---- ANOTACIONES DE SOPORTE ----
-# hsp y dsp
 ax.annotate('hsp = %g mm\ndsp = %g mm' % (hsp, dsp),
             xy=P['S1'], xytext=(P['S1'][0] - 12, P['S1'][1] + 8),
             fontsize=7, color=GRY, ha='center',
             arrowprops=dict(arrowstyle='->', color=GRY, lw=0.8),
             bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=GRY, lw=0.6))
 
-# ---- LEYENDA (estilo de ingenieria) ----
+# ---- LEYENDA ----
 legend_elements = [
     Line2D([0], [0], color=DRK, lw=6, label='Cuerpos rigidos (falanges)'),
     Line2D([0], [0], color=BLK, lw=3.5, label='Marco fijo (bancada)'),
     Line2D([0], [0], color=BLK, lw=2.0, label='Eslabones de mecanismos'),
-    Line2D([0], [0], color=BLK, lw=2.0, ls='--', label='Distancias virtuales / bancadas flotantes'),
+    Line2D([0], [0], color=BLK, lw=2.0, ls='--', label='Distancias virtuales'),
+    Line2D([0], [0], color=ORG, lw=2.0, label='c2+Fm = cuerpo rigido (THETAauxfm)'),
+    Line2D([0], [0], color=ORG, lw=2.5, ls=':', label='Poste Fd vestigial (sin uso)'),
     Line2D([0], [0], color='white', marker='o', markeredgecolor=BLK,
            markerfacecolor='white', markersize=8, lw=0, label='Articulacion de revolucion'),
 ]
-ax.legend(handles=legend_elements, loc='upper left', fontsize=9,
+ax.legend(handles=legend_elements, loc='upper left', fontsize=8.5,
           framealpha=0.95, edgecolor=BLK)
 
 # ---- CUADRO DE INFORMACION del 4B#3 ----
 info_text = (
-    '4-Barras #3 (DIP) - DORSAL:\n'
-    '  Posicion: lado DORSAL (reflejado del analitico)\n'
+    '4-Barras #3 (DIP) - vista DORSAL:\n'
     '  Bancada = Fm = %g mm (IFP a IFD)\n'
-    '  Manivela (Lpc=%g) rigida a Fp, pivote en IFP\n'
-    '  Acoplador (Lac=%.2f) CRK3-ROK3\n'
-    '  Balancin (Lpd=%g) rigida a Fd, pivote en IFD\n'
-    '  BETA1=%g deg, BETA2=%g deg\n'
+    '  Manivela Lpc=%g mm rigida a Fp, pivote en IFP\n'
+    '  Acoplador Lac=%.2f mm CRK3-ROK3\n'
+    '  Balancin Lpd=%g mm rigida a Fd, pivote en IFD\n'
+    '  Angulos GEOMETRICOS (lo que se mide en el dibujo):\n'
+    '    BETA1_geom = %.1f deg (de Fp axis a Lpc dorsal)\n'
+    '    BETA2_geom = %.1f deg (de Fd axis a Lpd dorsal)\n'
+    '  Parametros analiticos internos (palmar):\n'
+    '    BETA1 codigo = %g deg ; BETA2 codigo = %g deg\n'
     '  Entrada: rotacion relativa Fp vs Fm (PIP)' %
-    (fm, Lpc, Lac, Lpd, BETA1, BETA2)
+    (fm, Lpc, Lac, Lpd, beta1_geom_short, beta2_geom, BETA1, BETA2)
 )
 ax.text(0.99, 0.02, info_text, transform=ax.transAxes,
         fontsize=8, va='bottom', ha='right', color=BLK,
         bbox=dict(boxstyle='round,pad=0.4', fc='#f8f8f8', ec=BLK, lw=1.0),
         fontfamily='monospace', zorder=10)
 
-# ---- CUADRO DE PARAMETROS COMPLETOS ----
+# ---- CUADRO DE PARAMETROS ----
 param_text = (
     'PARAMETROS COMPLETOS (mm, deg)\n'
     '------------------------------\n'
@@ -447,24 +520,24 @@ param_text = (
     'fm = %g  fd = %g\n'
     'THETA1_ini = %g  THETA14B = %g\n'
     'THETAauxfm = %.2f  reng = %g\n'
-    'Lpc = %g  Lpd = %g  Lac = %.2f\n'
-    'BETA1 = %g  BETA2 = %g' %
+    '4B#3:  Lpc = %g  Lpd = %g  Lac = %.2f\n'
+    '       BETA1_geom = %.1f deg\n'
+    '       BETA2_geom = %.1f deg' %
     (Bancada1, Bancada2, Link1, Link2, Link3, Link4, Link5, Link6,
      Link7, Link8, c2, hsp, dsp, fp, fm, fd,
      TETHA1inicial, THETA14B, THETAauxfm, reng,
-     Lpc, Lpd, Lac, BETA1, BETA2)
+     Lpc, Lpd, Lac, beta1_geom_short, beta2_geom)
 )
 ax.text(0.01, 0.98, param_text, transform=ax.transAxes,
         fontsize=7.5, va='top', ha='left', color=BLK,
         bbox=dict(boxstyle='round,pad=0.4', fc='#f8f8ff', ec=BLK, lw=1.0),
         fontfamily='monospace', zorder=10)
 
-# ---- TITULO Y CONFIGURACION ----
 ax.set_aspect('equal')
 ax.grid(True, ls=':', alpha=0.4, color='#999999')
-ax.set_title('Diagrama de Eslabones - Exoesqueleto de Dedo Indice\n'
+ax.set_title('Diagrama de Eslabones - Exoesqueleto de Dedo Indice (v4)\n'
              'Posicion de referencia: THETA2 = 0 deg (cotas en mm)\n'
-             'Construir segun este diagrama reproduce las trayectorias de CinematicaExoModificada.m',
+             'c2 y Fm = cuerpo rigido triangular | Angulos del 4B#3 GEOMETRICOS',
              fontsize=12, fontweight='bold', color=BLK)
 ax.set_xlabel('X (mm)', fontsize=10)
 ax.set_ylabel('Y (mm)', fontsize=10)
@@ -474,7 +547,7 @@ plt.savefig('diagrama_mecanismo_completo.png', dpi=180, bbox_inches='tight',
             facecolor='white', edgecolor='none')
 plt.close()
 
-# ===================== VERIFICACION DE LONGITUDES =====================
+# ===================== VERIFICACION =====================
 def dist(a_, b_): return np.linalg.norm(P[a_] - P[b_])
 
 checks = [
@@ -495,6 +568,7 @@ checks = [
     ("|IFP-CRK3| = Lpc",            dist('IFP', 'CRK3'), Lpc),
     ("|CRK3-ROK3| = Lac",           dist('CRK3', 'ROK3'), Lac),
     ("|IFD-ROK3| = Lpd",            dist('IFD', 'ROK3'), Lpd),
+    ("|Fd_anchor-Fd_post_tip|=hsp", dist('Fd_anchor', 'Fd_post_tip'), hsp),
 ]
 print("=== VERIFICACION DE LONGITUDES (mm) ===")
 all_ok = True
@@ -504,9 +578,12 @@ for name, val, exp in checks:
     print(f"  [{'OK' if ok else 'XX'}] {name:30s}  calc={val:8.3f}  esperado={exp:8.3f}")
 print(f"\n{'TODAS CORRECTAS' if all_ok else 'HAY DISCREPANCIAS - REVISAR'}")
 
-# Verificacion DIP
+print("\n=== ANGULOS GEOMETRICOS DEL 4B#3 (medidos en el diagrama dorsal) ===")
+print(f"  BETA1_geom = {beta1_geom_short:.2f} deg (de Fp axis a Lpc dorsal)")
+print(f"  BETA2_geom = {beta2_geom:.2f} deg (de Fd axis a Lpd dorsal)")
+
 print("\n=== VERIFICACION DIP (THETA2 = 0..132 deg) ===")
-compute_geometry._alpha2_prev = None  # Reset unwrap state
+compute_geometry._alpha2_prev = None
 dips = []
 for T in np.linspace(0, 132, 67):
     PT = compute_geometry(T)
@@ -517,11 +594,10 @@ mono = bool(np.all(diffs >= -1e-9) or np.all(diffs <= 1e-9))
 print(f"  DIP relativo: {dips[0]:.2f} -> {dips[-1]:.2f} deg  (excursion {dips.max()-dips.min():.2f} deg)")
 print(f"  Monotono: {'SI' if mono else 'NO'}")
 
-# Verificacion DORSAL: CRK3 y ROK3 deben estar del lado dorsal de la falange medial
-print("\n=== VERIFICACION DORSAL (CRK3, ROK3 arriba de la linea IFP-IFD) ===")
+print("\n=== VERIFICACION DORSAL ===")
 d_phal = P['IFD'] - P['IFP']
 d_norm = d_phal / np.linalg.norm(d_phal)
-dorsal_dir = np.array([d_norm[1], -d_norm[0]])  # CW rotation = dorsal (arriba)
+dorsal_dir = np.array([d_norm[1], -d_norm[0]])
 dot_crk3 = np.dot(P['CRK3'] - P['IFP'], dorsal_dir)
 dot_rok3 = np.dot(P['ROK3'] - P['IFP'], dorsal_dir)
 print(f"  CRK3 dot dorsal = {dot_crk3:.3f}  ({'DORSAL OK' if dot_crk3 > 0 else 'PALMAR - ERROR'})")
