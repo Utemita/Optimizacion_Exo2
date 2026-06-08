@@ -1,0 +1,60 @@
+======================================================================
+RESULTADOS DE SINTESIS DE FREUDENSTEIN - 3 LAZOS
+Exoesqueleto de dedo indice - Agarre fino (tip pinch)
+======================================================================
+
+Datos de referencia extraidos de: Base de datos Pizzolato
+  Rango MCP: 0 a 36.4 grados
+  Rango PIP: 0 a 64.6 grados
+  Rango DIP (diseno): 0 a 59.6 grados
+  Rango DIP (dato): 0 a 66.8 grados
+  Rango Motor: 0 a 125 grados
+
+Nota: Cada lazo mapea linealmente su entrada a la salida.
+El mecanismo cascadeado reproduce las amplitudes del agarre fino.
+
+--------------------------------------------------
+Lazo 1 (Motor->MCP)
+--------------------------------------------------
+  Eslabon fijo (d):   15.00 mm
+  Manivela (a):       6.12 mm
+  Acoplador (b):      25.04 mm
+  Balancin (c):       34.71 mm
+  Angulo inicial entrada (phi0): 165 deg
+  Angulo inicial salida  (psi0): 130 deg
+  Ratio max/min:      5.67
+  Condicion Grashof:  No
+  Error RMS:          0.05 deg
+
+--------------------------------------------------
+Lazo 2 (MCP->PIP)
+--------------------------------------------------
+  Eslabon fijo (d):   15.00 mm
+  Manivela (a):       59.90 mm
+  Acoplador (b):      50.37 mm
+  Balancin (c):       19.07 mm
+  Angulo inicial entrada (phi0): 60 deg
+  Angulo inicial salida  (psi0): 5 deg
+  Ratio max/min:      3.99
+  Condicion Grashof:  No
+  Error RMS:          0.04 deg
+
+--------------------------------------------------
+Lazo 3 (PIP->DIP)
+--------------------------------------------------
+  Eslabon fijo (d):   10.00 mm
+  Manivela (a):       49.12 mm
+  Acoplador (b):      13.83 mm
+  Balancin (c):       54.21 mm
+  Angulo inicial entrada (phi0): 50 deg
+  Angulo inicial salida  (psi0): 50 deg
+  Ratio max/min:      5.42
+  Condicion Grashof:  No
+  Error RMS:          0.05 deg
+
+======================================================================
+Dimensiones del dedo:
+  Falange proximal (fp): 49 mm
+  Falange medial (fm):   26 mm
+  Falange distal (fd):   24 mm
+======================================================================
