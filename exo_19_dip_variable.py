@@ -76,6 +76,47 @@ else:
         dip_raw = interp1d(t_orig, dip_raw, kind='linear')(t_new)
         print(f"   Resampleado de {n_original} a {N_TARGET} puntos.")
 
+    # ---------------------------------------------------------------
+    # Recortar regiones planas del inicio y final de la trayectoria.
+    # Una fila es "plana" si la suma de cambios absolutos de los 3
+    # angulos respecto a la fila anterior es menor a 0.5 grados.
+    # Se recorta solo desde los extremos (preserva el nucleo dinamico).
+    # Despues se re-resamplea a N_TARGET puntos.
+    # ---------------------------------------------------------------
+    FLAT_THRESH = 0.5  # grados
+    diffs_total = (np.abs(np.diff(mcp_raw))
+                   + np.abs(np.diff(pip_raw))
+                   + np.abs(np.diff(dip_raw)))
+    # Trim desde el inicio
+    trim_start = 0
+    for i in range(len(diffs_total)):
+        if diffs_total[i] >= FLAT_THRESH:
+            break
+        trim_start = i + 1
+    # Trim desde el final
+    trim_end = len(mcp_raw)
+    for i in range(len(diffs_total) - 1, -1, -1):
+        if diffs_total[i] >= FLAT_THRESH:
+            break
+        trim_end = i + 1
+    # Aplicar recorte si se elimino algo significativo
+    if (trim_start > 0 or trim_end < len(mcp_raw)) and (trim_end - trim_start >= 10):
+        n_before = len(mcp_raw)
+        mcp_raw = mcp_raw[trim_start:trim_end]
+        pip_raw = pip_raw[trim_start:trim_end]
+        dip_raw = dip_raw[trim_start:trim_end]
+        print(f"   Regiones planas recortadas: indices [{trim_start}:{trim_end}] "
+              f"de {n_before} -> {len(mcp_raw)} puntos dinamicos.")
+        # Re-resamplear al numero objetivo
+        n_trimmed = len(mcp_raw)
+        if n_trimmed != N_TARGET and n_trimmed > 3:
+            t_tr = np.linspace(0, 1, n_trimmed)
+            t_new2 = np.linspace(0, 1, N_TARGET)
+            mcp_raw = interp1d(t_tr, mcp_raw, kind='linear')(t_new2)
+            pip_raw = interp1d(t_tr, pip_raw, kind='linear')(t_new2)
+            dip_raw = interp1d(t_tr, dip_raw, kind='linear')(t_new2)
+            print(f"   Re-resampleado a {N_TARGET} puntos (solo fase dinamica).")
+
 N_PUNTOS = len(mcp_raw)
 
 # Recortar DIP a 0 deg minimo (no puede existir hiperextension en el exo)
@@ -301,6 +342,8 @@ def run_kinematics(p, th_input):
         # ===============================================================
         delta_pip = theta_fm - theta_fp
         theta_aux_fd = coeff_fd_0 + coeff_fd_1 * delta_pip + coeff_fd_2 * delta_pip**2
+        # Clamp fisico: DIP offset no puede exceder pi/2 ni ser negativo
+        theta_aux_fd = np.clip(theta_aux_fd, 0, np.pi / 2)
         theta_fd = theta_fm + theta_aux_fd
 
         # -----------------------------------------------------------------
@@ -396,7 +439,7 @@ bounds = [
     (0.0,   np.pi),                                # theta_aux_fm
     (0.0,   np.pi),                                # coeff_fd_0 (offset base, similar a theta_aux_fd)
     (-2.0,  2.0),                                  # coeff_fd_1 (acoplamiento lineal)
-    (-5.0,  5.0),                                  # coeff_fd_2 (acoplamiento cuadratico)
+    (-2.0,  2.0),                                  # coeff_fd_2 (acoplamiento cuadratico)
     (1.0,   8.0),                                  # gear_ratio
     (-np.pi, np.pi)                                # theta_offset
 ]
